@@ -133,3 +133,122 @@ function.prototype,myBind=function(context){
     - 特性
       可以在一个 DOM 元素上绑定多个事件处理器，各自并不会冲突
   - IE 事件模型（基本不用）
+
+# 解释下什么是事件代理？应用场景？
+
+事件代理：把一个元素响应事件的函数（click，mousedown，moseup，keydown，keyup，keypress）委托到另一个元素
+应用场景：如果用户能够随时动态的增加或者去除列表元素，那么每一次改变的时候都需要重新给新增的元素绑定事件，给即将删除的元素解绑事件，这样会导致性能问题，所以我们可以使用事件代理的方式来解决这个问题
+
+# 说说你对闭包的理解？闭包的使用场景
+
+闭包：一个函数和对其周围状态的应用捆绑在一起，也就是说在一个内层函数中访问其外层函数的作用域
+使用场景：创建私有变量，延长变量的生命周期
+缺点：常驻内存，会增大内存的使用量，使用不当会造成内存泄漏
+
+# 说说 JS 中的类型转换机制
+
+显示转化，可以清楚的看到发生类型转化，如：Number()，String()
+隐式转化，比较运算，算术运算时会发送
+
+# 深拷贝浅拷贝的区别？如何实现一个深拷贝？
+
+浅拷贝，指创建新的数据，这个数据有着原始数据属性的值一份精准拷贝。如果属性是基本类型，拷贝的就是基本类型的值。如果属性是应用类型，拷贝的就是内存地址。即浅拷贝是拷贝一层，深层次的引用类型则是共享内存地址。
+在 JS 中，存在浅拷贝的现象有：
+1.Object.assign()
+2.Array.prototype.slice()
+3.Array.prototype.concat() 4.展开运算符... 5.自定义函数
+
+```js
+//Object.assign()方法实现浅拷贝
+var obj={
+  age:18,
+  nature:['smart','good'],
+  names{
+    name1:'张三',
+    name2:'李四'
+  },
+  love:function(){
+    console.log('我是一个人')
+  }
+}
+var newObj=Object.assign({},obj)
+```
+
+```js
+//Array.prototype.slice()方法实现浅拷贝
+const fxArr = ["one", "two", "three"];
+const newArr = fxArr.slice(0);
+newArr[1] = "love";
+console.log(fxArr); //['one','two','three']
+console.log(newArr); //['one','love','three']
+```
+
+```js
+//Array.prototype.concat()方法实现浅拷贝
+const fxArr = ["one", "two", "three"];
+const newArr = fxArr.concat(0);
+newArr[1] = "love";
+console.log(fxArr); //['one','two','three']
+console.log(newArr); //['one','love','three']
+```
+
+```js
+//展开运算符实现浅拷贝
+const fxArr = ["one", "two", "three"];
+const newArr = [...fxArr];
+newArr[1] = "love";
+console.log(fxArr); //['one','two','three']
+console.log(newArr); //['one','love','three']
+```
+
+```js
+//自定义函数实现浅拷贝
+function shallowCopy(obj) {
+  const newObj = {};
+  for (let prop in obj) {
+    if (obj.hasOwnProperty(prop)) {
+      newObj[prop] = obj[prop];
+    }
+  }
+  return newObj;
+}
+```
+
+深拷贝，指开辟一个新的栈，两个对象属性完成相同，但是两个不同的地址，修改一个对象的属性，不会改变另一个对象的属性。
+深拷贝的方法有：
+1.JSON.parse(JSON.stringify()) 2.递归 3.使用 loadsh 库
+
+```js
+//JSON.parse(JSON.stringify())方法实现深拷贝
+//存在弊端，会忽略underfined,symbol,function
+const newObj=JSON.parse(JSON.stringify(obj))
+//递归实现深拷贝
+function deepClone(obj,hash=new WeakMap()){
+  if(obj===null) reutrn obj   //如果是null或者undefined就不行拷贝
+  if(obj instanceof Date) return new Date(obj)
+  if(obj instanceof RegExp)  return new RegExp(obj)
+  //可能是对象或者普通的值 如果是函数的话是不需要深拷贝
+  if(typeof obj!=='Object') return obj
+  //是对象的话就要进行深拷贝
+  if(hash.get(obj)) return hash.get(obj)
+  let cloneObj=new obj.constructor()
+  //找到的是所属类原型上的constructor,而原型上的constructor指向的是当前类本身
+  hash.set(obj,cloneObj)
+  for(let key in obj){
+    if(obj.hasOwnProperty(key)){
+      //实现一个递归拷贝
+      cloneObj[key]=deepClone(obj[key],hash)
+    }
+  }
+  return cloneObj
+}
+//使用loadsh库函数实现深拷贝
+const _=require('loadsh')
+const obj1={
+  a:1,
+  b:{f:{g:2}},
+  c:[1,2,3]
+}
+const obj2=_.cloneDeep(obj1)
+console.log(obj1.b.f===obj2.b.f)  //false
+```
