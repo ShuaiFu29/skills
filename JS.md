@@ -252,3 +252,115 @@ const obj1={
 const obj2=_.cloneDeep(obj1)
 console.log(obj1.b.f===obj2.b.f)  //false
 ```
+
+# JS 中如何实现函数缓存？函数缓存有哪些应用场景？
+
+函数缓存，就是将函数运算过的结果进行缓存，本质上就是空间换时间。缓存只是一个临时的数据存储，它保存数据，以便将来对该数据的请求能够更快地处理。
+如何实现？
+
+```js
+//1.使用闭包（函数+函数体内可访问的变量总和）
+(function(){
+  var a=1
+  function add(){
+    const b=2
+    let sum=b+a
+    console.log(sum)
+  }
+  add()
+})()
+//2.柯里化
+//非函数柯里化
+var add=function(x,y){
+  return x+y
+}
+add(3,4)//7
+//函数柯里化
+var add2=function(x){
+  return funtion(y){
+    return x+y
+  }
+}
+add(3)(4)//7
+//3.高阶函数
+function foo(){
+  var a=2
+  function bar(){
+    console.log(a)
+  }
+  return bar
+}
+var baz=foo()
+baz()//2
+
+const memoize=function(func,content){
+  let cache=Object.create(null)
+  content=content||this
+  return (...key)=>{
+    if(!cache[key]){
+      cache[key]=func.apply(content,key)
+    }
+    return cache[key]
+  }
+}
+```
+
+应用场景：
+
+- 对于昂贵的函数调用，执行复杂计算的函数
+- 对于具有有限且高度重复输入范围的函数
+- 对于具有重复输入值的递归函数
+- 对于纯函数，即每次使用特定输入调用时返回相同输出的函数
+
+# 说说你对事件循环的理解
+
+首先，JS 是一门单线程的语言，意味着同一时间内只能做一件事情，但是这不意味这单线程就是阻塞，而实现单线程非阻塞的方法就是事件循环。
+在 JS 中，所有的任务都可以分为
+同步任务：立即执行的任务，同步任务一般会直接进入主线程中执行
+异步任务：异步执行的任务，比如 ajax 网络请求，setTimeout 定时函数等
+
+- 微任务
+  - Promise.then()
+  - MutationObserver
+  - Object.observe(已废弃，Proxy 对象替代)
+  - process.nextTick(node.js)
+- 宏任务
+  - script(可以理解为外层同步代码)
+  - setTimeout/setInterval
+  - UI rendering/UI 事件
+  - postMessage,MessagrChannel
+  - setImmediate,I/O(Node.js)
+    执行机制：
+- 执行一个宏任务，如果遇到微任务就把它放到微任务的事件队列中
+- 当宏任务执行完成后，会查看微任务的事件队列，然后将里面的所有微任务依次执行完
+
+async 与 await
+async 是异步的意思，await 则可以理解为 async wait。所以可以理解 async 就是用来声明一个异步的方法，而 await 是用来等待异步方法执行。不管 await 后面跟的是什么，await 都会阻塞后面的代码，放入微任务队列中。
+
+# JS 本地存储的方式有哪些？区别及应用场景？
+
+- cookie
+  1. 大小为一般不超过 4KB
+  2. 每次请求都会携带
+  3. 安全性差
+- localStorage
+  1. 生命周期：持久化的本地存储，除非主动删除数据，否则数据永远不会过期
+  2. 存储的信息在同一域是共享的
+  3. 大小为 5MB
+  4. 本质是对字符串的读取
+- sessionStorage
+  和 localStorage 使用方法基本一致，唯一不同的是生命周期，一旦页面关闭，sessionStorage 中的数据就会被清空
+- IndexDB
+  1. 是一种基于事务的非关系型数据库
+  2. 存储大量数据
+  3. 可以离线存储
+  4. 支持事务
+  5. 支持索引
+  6. 支持二进制存储
+  7. 支持跨域访问
+  8. 支持多线程访问
+- 应用场景：
+  - 标记用户与跟踪用户行为的情况，推荐使用 cookie
+  - 适合长期保存本地的数据，推荐使用 localStorage
+  - 敏感账号一次性登录，推荐使用 sessionStorage
+  - 适合存储大量数据的情况，推荐使用 IndexDB
