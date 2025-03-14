@@ -364,3 +364,168 @@ async 是异步的意思，await 则可以理解为 async wait。所以可以理
   - 适合长期保存本地的数据，推荐使用 localStorage
   - 敏感账号一次性登录，推荐使用 sessionStorage
   - 适合存储大量数据的情况，推荐使用 IndexDB
+
+# 大文件上传如何做断点续传？
+
+上传大文件的时候，一下几个变量会影响我们的用户体验：
+
+- 服务器处理数据的能力
+- 请求超时
+- 网络波动
+  为了解决上述问题，我们需要对大文件上传单独处理
+  分片上传
+  就是将要上传的文件，按照一定的大小，将整个文件分隔成多个数据块来进行分片上传，上传完成之后再由服务器端对所有上传的文件进行汇总整合成原始的文件
+
+1. 将需要上传的文件按照一定的分割规则，分割成相同大小的数据块
+2. 初始化一个分上传任务，返回本次分片上传的唯一标识
+3. 按照一定的策略（串行或并行）发送各个分片数据块
+4. 发送完成后，服务端根据判断数据上传是否完整，如果完整，则进行数据块合成得到原始文件
+   断点续传
+   在下载或上传时，将下载或上传任务人为的划分为几个部分，每个部分采用一个线程进行上传或下载，如果碰到网络故障，可以从已经上传或下载的部分开始继续上传下载未完成的部分，而没有必要从头开始上传下载。用户可以节省时间，提高速度，一般实现方式有两种：
+5. 服务端返回，告知从哪开始
+6. 浏览器端自行处理
+   上传过程将文件在服务端写为临时文件，等全部写完了，在将此临时文件重命名为正式文件。
+
+# ajax 原理是什么？如何实现？
+
+ajax 即异步的 JS 和 XML,是一种创建交互式网页应用开发技术，可以在不重新加载整个页面的情况下，与服务端交换数据，并更新部分网页。
+ajax 的原理简单来说通过 XmlHttpRequest 对象来向服务器发异步请求，从服务端获取数据，然后用 JS 来操作 DOM 而更新页面。
+
+```js
+//封装一个ajax请求
+function ajax(options) {
+  const xhr = new XMLHttpRequest();
+  //初始化参数内容
+  options = options || {};
+  options.type = (options.type || "GET").toUpperCase();
+  options.dataType = options.dataType || "json";
+  const params = options.data;
+  //发送请求
+  if (options.type === "GET") {
+    xhr.open("GET", options.url + "?" + params, true);
+    xhr.send(null);
+  } else if (options.type === "POST") {
+    xhr.open('POST',options.url,true)
+    xhr.send(params)
+  }
+  //接收请求
+  xhr.onreadystatechange=function(){
+    if(xhr.readyState===4){
+      let status=xhr.status
+      if(status>=200&&status<300){
+        options.success&&options.success(xhr.responseText,,xhr.responseXML)
+      }else{
+        options.fail&&options.fail(status)
+      }
+    }
+  }
+}
+ajax({
+  type:'post',
+  dataType:'json',
+  data:{}.
+  url:'htpps://xxx',
+  success:function(text,xml){//请求成功后的回调函数
+    console.log(text)
+  }
+  fail:function(status){//请求失败后的回调函数
+    console.log(status)
+  }
+})
+```
+
+# 什么是防抖和节流？有什么区别？如何实现？
+
+- 本质
+  优化高频率执行代码的一种手段
+  如：浏览器的 resize,scroll,keypress,mousemove 等事件在触发时，会不断地调用绑定在事件上的回调函数，极大地浪费资源，降低前端性能，为了优化体验，需要对这类事件进行调用次数上的限制，对此我们就可以采用防抖和节流的方式来减少调用频率。
+- 定义
+  - 节流：n 秒内只允许一次，若在 n 秒内重复触发，只有一次生效
+  - 防抖：n 秒后在执行该事件，若在 n 秒内被重复触发，则重新计时
+- 代码实现
+
+```js
+//节流
+//使用时间戳写法，事件会立即执行，停止触发后就没办法再次执行
+function throttled1(fn, delay = 500) {
+  let oldtime = Date.now();
+  return function (...args) {
+    let newtime = Date.now();
+    if (newtime - oldtime >= delay) {
+      fn.apply(null, args);
+      oldtime = Date.now();
+    }
+  };
+}
+//使用定时器写法，delay毫秒后第一次执行，第二次事件停止触发后依然会再一次执行
+function throttled2(fn, delay = 500) {
+  let timer = null;
+  return function (...args) {
+    if (!timer) {
+      timer = setTimeout(() => {
+        fn.apply(this, args);
+        timer = null;
+      }, delay);
+    }
+  };
+}
+//可以将时间戳写法的特性与定时器的特性相结合，实现一个更加精准的节流
+function throttled(fn, delay) {
+  let timer = null;
+  let starttime = Date.now();
+  return function () {
+    let curtime = Date.now(); //当前时间
+    let remaining = delay - (curtime - starttime); //从上一次到现在，还剩下多少多余时间
+    let context = this;
+    let args = arguments;
+    if (remaining <= 0) {
+      fn.apply(context, args);
+      starttime = Date.now();
+    } else {
+      timer = setTimeout(fn, remaining);
+    }
+  };
+}
+//防抖
+function debounce(fn, wait) {
+  let timeout;
+  return function () {
+    let context = this; //保存this指向
+    let args = arguments; //拿到event对象
+    clearTimeout(timeout);
+    timeout = setTimeout(function () {
+      fn.apply(context, args);
+    }, wait);
+  };
+}
+//防抖如果需要立即执行，可以加入第三个参数用于判断
+function debounce(fn, wait, immediate) {
+  let timeout;
+  return function () {
+    let context = this;
+    let args = arguments;
+    if (timeout) clearImeout(timeout); //timeout 不为null
+    if (immediate) {
+      let callNow = !timeout; //第一次会立即执行，以后只有事件执行后才会再次触发
+      timeout = setTimeout(function () {
+        timeout = null;
+      }, wait);
+      if (callNow) {
+        fn.apply(context, args);
+      } else {
+        timeout = setTimeout(function () {
+          fn.apply(context, args);
+        }, wait);
+      }
+    }
+  };
+}
+```
+
+- 区别
+  相同点：
+  都可以通过使用 setTimeout 实现
+  目的都是，降低回调执行频率，节省计算资源
+  不同点:
+  函数防抖，在一段连续操作结束后，处理回调，利用 clearTimeout 和 setTimeout 实现。函数节流，在一段连续操作中，每一段时间只执行一次频率较高的事件中使用来提升性能
+  函数防抖关注一定时间连续触发的事件，只在最后执行一次，而函数节流一段时间内只执行一次
