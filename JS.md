@@ -529,3 +529,291 @@ function debounce(fn, wait, immediate) {
   不同点:
   函数防抖，在一段连续操作结束后，处理回调，利用 clearTimeout 和 setTimeout 实现。函数节流，在一段连续操作中，每一段时间只执行一次频率较高的事件中使用来提升性能
   函数防抖关注一定时间连续触发的事件，只在最后执行一次，而函数节流一段时间内只执行一次
+
+# 说说你对正则表达式的理解？应用场景？
+
+在 JS 中，正则表达式也是对象，构建正则表达式有两种方式：
+
+1. 字面量创建，其包含在斜杠之间的模式组成
+2. 调用 RegExp 对象的构造函数
+   匹配规则:
+   ^ 匹配输入的开始
+   $ 匹配输入的结束
+
+- 匹配前一个表达式 0 次或多次
+
+* 匹配前一个表达式 1 次或多次
+  ? 匹配前一个表达式 0 次或 1 次
+  贪婪模式：
+  在匹配过程中，尝试可能顺序是从多到少的方向去尝试匹配
+  懒惰模式：
+  在匹配过程中，尝试可能顺序是从少到多的方向去尝试匹配。
+  惰性量词就是在贪婪量词后面加个问号
+
+# 说说你对函数式编程的理解？优缺点？
+
+函数式编程时一种"编程范式"，一种编写程序的方法论
+主要的编程范式有三种: 命令式编程，声明式编程，函数式编程
+相比命令式编程，函数式编程更加强调程序执行过程的结果而非执行过程
+
+```js
+//命令式编程
+var array = [0, 1, 2, 3];
+for (let i = 0; i < array.length; i++) {
+  array[i] = Math.pow(array[i], 2);
+}
+//函数式方式
+[0, 1, 2, 3].map((num) => Math.pow(num, 2));
+```
+
+简单来讲，就是要把过程逻辑写成函数，定义好输入参数，只关心它的输出结果
+
+- 纯函数
+  函数式编程旨在尽可能的提高的无状态和不变性。
+  纯函数是对给定输入返回相同的输出的函数，并且要求你对所有的数据都是不可变的，即纯函数=无状态+数据不可变
+- 高阶函数
+  高阶函数，就是以函数作为输入或者输出的函数被称为高阶函数
+
+```js
+//通过高阶函数抽象过程，注重结果，如下面例子
+const forEach = function (arr, fn) {
+  for (let i = 0; i < arr.length; i++) {
+    fn(arr[i]);
+  }
+};
+let arr = [1, 2, 3];
+forEach(arr, (item) => {
+  console.log(item);
+});
+//高阶函数存在缓存的特性，主要是利用闭包作用
+const once = (fn) => {
+  let done = false;
+  return function () {
+    if (!done) {
+      fn.apply(this, fn);
+    } else {
+      console.log("该函数已经执行");
+    }
+    done = true;
+  };
+};
+```
+
+- 柯里化
+  柯里化是把一个多参数函数转化为一个嵌套的一元函数的过程
+  意义：让纯函数更纯，每次接受一个参数，松散解耦，懒惰执行
+- 组合与管道
+  组合函数，目的是将多个函数组合成一个函数
+  管道函数执行顺序是从左到右执行的
+  组合函数和管道函数的意义在于:可以把很多小函数组合起来完成更复杂的逻辑
+
+```js
+function afs(a) {
+  return a * 2;
+}
+function bfn(b) {
+  return b * 3;
+}
+const compose = (a, b) => (c) => a(b(c));
+let myfn = compose(afn, bfn);
+console.log(myfn(2));
+```
+
+- 优缺点
+  优点：
+  1. 更好的管理状态
+  2. 更好简单的复用
+  3. 更优雅的组合
+  4. 隐形好处，减少代码量，提高维护性
+     缺点：
+  5. 性能开销大
+  6. 资源占用
+  7. 递归陷阱
+
+# 说说 JS 中内存泄漏的情况有几种？
+
+内存泄漏，由于疏忽或错误造成程序未能释放已经不再使用的内存
+垃圾回收机制
+JS 中垃圾收集器会周期性找出那些不在继续使用的变量，然后释放其内存
+
+# JS 如何实现继承？
+
+- 实现方式
+  - 原型链继承
+  - 构造函数继承
+  - 组合继承
+  - 原型式继承
+  - 寄生式继承
+  - 寄生组合式继承
+    原型链继承
+
+```js
+function Parent() {
+  this.naem = "parent1";
+  this.play = [1, 2, 3];
+}
+function Child() {
+  this.type = "child";
+}
+Child.portotype = new Parent();
+console.log(new Child());
+var s1 = new Child();
+var s2 = new Child();
+s1.play.push(4);
+console.log(s1.play, s2.play); //[1,2,3,4]
+//改变s1的play属性，s2也会跟着改变，这是因为两个实例使用的是同一个原型对象，内存空间是共享的
+```
+
+构造函数继承
+
+```js
+//借助call调用Parent函数
+function Parent() {
+  this.name = "parent1";
+}
+Parent.prototype.getName = function () {
+  return this.name;
+};
+function Child() {
+  Parent.call(this);
+  this.type = "child";
+}
+let child = new Child();
+console.log(child); //没问题
+console.log(child.getName()); //报错
+//父类原型对象中一旦存在父类之前自己定义的方法，那么子类将无法继承这些方法，相比第一种原型继承方式，父类的引用属性不会被共享，优化了第一种继承方式的弊端，但是只能继承父类的实例属性和方法，不能继承原型属性或方法
+```
+
+组合继承
+
+```js
+function Parent3() {
+  this.name = "parent1";
+  this.play = [1, 2, 3];
+}
+Parent3.prototype.getName = function () {
+  return this.name;
+};
+function Child3() {
+  Parent3.call(this);
+  this.type = "child3";
+}
+Child3.prototype = new Parent3();
+Child3.prototype.constructor = Child3;
+var s3 = new Child3();
+var s4 = new Child3();
+s3.play.push(4);
+console.log(s3.play, s4.play); //互不影响
+console.log(s3.getName()); //正常输出'parent3
+console.log(s4.getName()); //正常输出'parent3'
+```
+
+原型式继承
+主要借助 Object.create 方法实现普通对象的继承
+
+```js
+let parent4 = {
+  name: "parent4",
+  frends: ["p1", "p2", "p3"],
+  getName: function () {
+    return this.name;
+  },
+};
+let person4 = Object.create(parent4);
+person4.name = "tom";
+person4.friends.push("jerry");
+let person5 = Object.create(parent4);
+person5.friends.push("lucy");
+console.log(person4.name); //tom
+console.log(person4.name === person4.getName()); //true
+console.log(person4.friends); //['p1','p2','p3','jerry','lucy']
+console.log(person5.friends); //['p1','p2','p3','jerry','lucy']
+```
+
+寄生式继承
+寄生式继承在上面继承基础上进行优化，利用这个浅拷贝能力再进行增强，添加一下方法
+
+```js
+let person5 = {
+  name: "parent5",
+  friends: ["p1", "p2", "p3"],
+  getName: function () {
+    return this.name;
+  },
+};
+function clone(original) {
+  let clone = Object.create(original);
+  clone.getFriends = function () {
+    return this.friends;
+  };
+  return clone;
+}
+let person5 = clone(person5);
+console.log(person5.getName()); //parent5
+console.log(person5.getFriends()); //['p1','p2','p3']
+//优缺点和上面原型式继承一样
+```
+
+寄生组合式继承
+
+```js
+function clone(parent, child) {
+  child.prototype = Object.create(parent.prototype);
+  child.prototype.constructor = child;
+}
+function Parent6() {
+  this.name = "parent6";
+  this.play = [1, 2, 3];
+}
+Parent6.prototype.getName = function () {
+  return this.name;
+};
+function Child6() {
+  Parent6.call(this);
+  this.friends = "child5";
+}
+clone(Parent6, Child6);
+Child6.prototype.getFriends = function () {
+  return this.friends;
+};
+let person6 = new Child6();
+console.log(person6);
+console.log(person6.getName()); //parent6
+console.log(person6.getFriends()); //child5
+```
+
+# 说说 JS 数据精度丢失的问题,，如何解决？
+
+- 原因
+  计算机存储双精度浮点数需要先把十进制转化为二进制的科学记数法的形式，然后计算机以自己的规则{符号位+（指数位+指数偏移量的二进制）+小数部分}存储二进制的科学记数法
+  因为存储时有位数限制（64 位），并且某些十进制的浮点数在转化为二进制数时会出现无限循环，会造成二进制的舍入操作（0 舍 1 入），当再转为十进制时就造成了计算误差
+- 解决方案
+  理论上用有限的空间来存储无限的小数是不可能保证精度的，但我们可以处理一下得到我们期望的结果
+
+```js
+function add(num1, num2) {
+  const num1Digits = (num1.toString().split(".")[1] || "").length;
+  const num2Digits = (num2.toString().split(".")[1] || "").length;
+  const baseNum = Math.pow(10, Math.max(num1Digits, num2Digits));
+  return (num1 * baseNum + num2 * baseNum) / baseNum;
+}
+```
+
+# 举例说明你对尾递归的理解，有哪些应用场景？
+
+尾递归，即在函数尾位置调用自身（或是一个尾调用本身的其他函数等等）。尾递归也是递归的一种特殊情况。
+
+```js
+//普通递归
+function factorial(n) {
+  if (n === 1) return 1;
+  return n * factorial(n - 1);
+}
+factorial(5); //120
+//尾递归
+function factorial(n, total) {
+  if (n === 1) return total;
+  return factorital(n - 1, n * total);
+}
+factorial(5, 1); //120
+```
