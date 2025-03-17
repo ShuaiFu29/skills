@@ -124,3 +124,173 @@ user-scalable 是用户的可以缩放的操作
   - transform:translate(x,y)
   - flex(不定高，不定宽)
   - grid(不定高，不定宽)，兼容性相对比较差
+
+# CSS 选择器有哪些？优先级？哪些属性可以继承？
+
+CSS 属性选择器常用的有：
+id 选择器（#box），选择 id 为 box 的元素
+类选择器（.one），选择类名为 one 的所以元素
+标签选择器（div）,选择标签为 div 的所有元素
+后代选择器（#box div） ，选择 id 为 box 元素内部所有 div 的元素
+子选择器（.one>one_1）,选择父元素为.one 的所有.one_1 的元素
+相邻同胞选择器（.one+.two）,选择紧接在.one 之后的所有.two 元素
+群组选择器（div,p） ,选择 div，p 的所有元素
+伪类选择器 （:link）,选择未被访问的链接
+属性选择器 [attribute] 选择带有 attribute 属性的元素
+
+优先级：
+内联>ID 选择器>类选择器>标签选择器
+
+不可继承属性：
+
+- display
+- 文本属性：vertical-align,text-decoration
+- 盒子模型的属性：宽度，高度，内外边距，边框等
+- 背景属性：背景图片，颜色，位置等
+- 定位属性：浮动，清除浮动，定位 position 等
+- 生成内容属性：content,counter-reset,counter-increment
+- 轮廓样式属性：outline-style，outline-width,outline-color,outline
+- 页面样式属性：size,page-break-before,page-break-after
+
+# CSS 中，有哪些方式可以隐藏页面元素？区别？
+
+CSS 实现隐藏元素方法有：
+
+- display:none
+- visibility:hidden
+- opacity:0
+- 设置 height,width 模型属性为 0
+- position-absolute
+
+# 如何实现单行/多行文本溢出的省略样式？
+
+单行文本溢出省略
+
+- text-overflow：规定当文本溢出是，显示省略符号来代表被修剪的文本
+- white-space：设置文字在一行显示，不能换行
+- overflow：文字长度超出限定宽度，则隐藏超出的内容
+  overflow 设为 hidden，普通情况用在块级元素的外层隐藏内部溢出元素，或者配合下面两个属性实现文本溢出省略
+  white-space:nowrap,作用是设置文本不换行，是 overflow:hidden 和 text-overflow:ellipsis 生效的基础
+  text-overflow 属性值有如下：
+  clip：当对象内文本溢出部分裁掉
+  ellipsis：当对象内文本溢出时显示省略标记(...)
+  text-overflow 只有在设置了 overflow:hidden 和 white-space:nowrap 才能够生效
+  多行文本溢出省略
+- 基于高度截断
+  伪元素+定位
+  - postition:relative 为伪元素绝对定位
+  - overflow:hidden 文本溢出限定的宽度就隐藏内容
+  - position:absolute 给省略号绝对定位
+  - line-height:20px 结合元素高度，高度固定的情况下，设定行高，控制行数
+  - height:40px 设定当前元素高度
+  - ::after{} 设置省略号样式
+  ```HTML
+  <style>
+      .deom{
+        position:relative;
+        line-height:20px;
+        height:40px;
+        overflow:hidden;
+      }
+      .demo::after{
+        content:'...';
+        position:absolute;
+        bottom:0;
+        right:0;
+        padding:0 20px 0 10px;
+      }
+  </style>
+  <body>
+      <div class='demo'>这是一段很长的文本</div>
+  </body>
+  ```
+  优点
+  - 兼容性好
+  - 响应式截断
+- 基于行数截断
+  - webkit-line-clamp:2 用来限制在一个块元素显示文本的行数，为了实现该效果，它需要组合其他的 WebKit 属性
+  - display:-webkit-box 将对象作为弹性伸缩盒子模型显示
+  - -webkit-box-orient:vertical 设置或检索伸缩盒对象的子元素排列方式
+  - overflow:hidden 文本溢出限定宽度就隐藏内容
+  - text-overflow:ellipsis 多文本的情况下，用省略号"..."隐藏溢出范围的文本
+    利用 JS 实现文本截取
+
+```HTML
+<script>
+  const textElement=document.getElementById('text')
+  const maxLength=20
+  const originalText=textElement.textContent
+  if(originalText>maxLength){
+    textElement.textContent=originalText.slice(0,maxLength)+'...'
+  }
+</script>
+```
+
+# 说说 flexbox（弹性盒布局模型），以及适用场景？
+
+Flexible Box 简称 flex,意为"弹性布局"，可以简便，完整，响应式地实现各种页面布局，采用 flex 元素
+属性有：
+
+- flex-direction:决定主轴的方向（即项目的排列方向）
+  - row(默认值)：主轴为水平方向，起点在左端
+  - row-reverse：主轴为水平方向，起点在右端
+  - column：主轴为垂直方向，起点在上沿
+  - column-reverse：主轴为垂直方向，起点在下沿
+- flex-wrap:弹性元素永远沿主轴排列，如果主轴排不下，通过 flex-wrap 绝对是否可以换行
+  - nowrap(默认值)：不换行
+  - wrap：换行，第一行在上方
+  - wrap-reverse：换行，第一行在下方
+- flex-flow:是 flex-direction 和 flex-wrap 的简写形式，默认值为 row nowrap
+- justify-content:定义了项目在主轴上的对齐方式
+  - flex-start(默认值)：左对齐
+  - flex-end：右对齐
+  - center：居中
+  - space-between：两端对齐，项目之间的间隔都相等
+  - space-around：每个项目两侧的间隔相等
+- align-items:定义项目在交叉轴上如何对齐
+  - flex-start：交叉轴的起点对齐
+  - flex-end：交叉轴的终点对齐
+  - center：交叉轴的中点对齐
+  - baseline：项目的第一行文字的基线对齐
+  - stretch(默认值)：如果项目未设置高度或设为 auto，将占满整个容器的高度
+- align-content:定义了多根轴线的对齐方式，如果项目只有一根轴线，该属性不起作用
+  - flex-start：与交叉轴的起点对齐
+  - flex-end：与交叉轴的终点对齐
+  - center：与交叉轴的中点对齐
+  - space-between：与交叉轴两端对齐，轴线之间的间隔平均
+    分布
+  - space-around：每根轴线两侧的间隔都相等
+  - stretch(默认值)：轴线占满整个交叉轴
+
+# 说说设备像素，css 像素，dpr，ppi 之间的区别？
+
+- css 像素
+  在 CSS 规范中，长度单位可以分为两类，绝对单位以及相对单位
+  px 是一个相对单位，相对的是设备像素
+  一般情况下，页面缩放比为 1，1 个 css 像素等于 1 个设备独立像素
+  px 会受到以下因素变化而变化，每英寸像素，设备像素比
+- 设备像素（物理像素）
+  指设备能控制显示的最小物理单位，不一定是一个小正方形区块，也没有标准的宽高，只是用于显示丰富色彩的一个点而已，从屏幕在工厂生产出那天起，它上面的设备像素点就固定不变了
+- 设备独立像素
+  与设备无光的逻辑像素，代表可以通过程序控制使用的虚拟像素
+- dpr（设备像素比）
+  dpr=设备像素/设备独立像素
+- ppi
+  屏幕分辨率：x\*y
+  ppi= √（x^2+y^2）/屏幕尺寸
+
+# 说说 em/px/rem/vh/vw 区别？
+
+相对长度单位：em,ex,ch,rem,vw,vh,vmin,vmax,%
+绝对单位：cm,mm,in,px,pt,pc
+
+- em
+  em 的值并不是固定的
+  em 会继承父级元素字体大小
+  em 是相对长度单位，相对于当前对象内文本的字体尺寸
+- rem
+  相对的只是 HTML 根元素 font-size 的值
+- vh,vw
+  相对于视口的高度和宽度
+- %
+  相对于父元素的宽度和高度
