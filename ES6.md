@@ -216,3 +216,90 @@ function* helloWorldGenerator() {
   - Generator,async 需要与 promise 对象搭配处理异步情况
   - async 实质是 Generator 的语法糖，相当于会自动执行 Generator 函数
   - async 使用上更为简洁，将异步代码以同步形式进行编写，是处理异步编程的最终方案
+
+# 你是怎么理解 ES6 新增 Set,Map 两种数据结构的？
+
+- Set
+  类似于数组，但是成员的值都是唯一的，没有重复的值
+  可以接受一个数组或者其他数据结构作为参数，用来初始化
+  可以通过 add()方法添加元素，通过 delete()方法删除元素，通过 has()方法判断元素是否存在
+- Map
+  类似于对象，也是键值对的集合，但是键的范围不限于字符串，各种类型的值都可以当作键
+  可以接受一个数组或者其他数据结构作为参数，用来初始化
+  可以通过 set()方法添加元素，通过 get()方法获取元素，通过 has()方法判断元素是否存在，通过 delete()方法删除元素
+- WeakSet
+  在 API 中 WeakSet 与 Set 的区别：
+  - 没有遍历操作的 API
+  - 没有 size 属性
+    WeakSet 成员只能是引用类型，而不能是其他类型的值
+    WeakSet 里面的引用只要在外部消失，它在 WeakSet 里面的引用就会自动消失
+  ```js
+  let ws = new WeakSet();
+  //成员不是引用类型
+  let weakSet = new WeakSet([1, 2, 3]);
+  console.log(weakSet); //报错
+  //成员为引用类型
+  let obj1 = { name: "张三" };
+  let obj2 = { name: "李四" };
+  let ws = new WeakSet([obj1, obj2]);
+  console.log(ws); //WeakSet { { name: '张三' }, { name: '李四' } }
+  ```
+- WeakMap
+  WeakMap 与 Map 结构类似，也是用于生成键值对的集合
+  在 API 中 WeakMap 与 Map 有两个区别：
+  - 没有遍历操作的 API
+  - 没有 clear 清空方法
+  ```js
+  //WeakMap可以使用set方法添加成员
+  const wm1 = new WeakMap();
+  const key = { foo: 1 };
+  wm1.set(key, 1);
+  wm1.get(key); //2
+  //WeakMap也可以接受一个数组
+  //作为构造函数的参数
+  const k1 = [1, 2, 3];
+  const k2 = [4, 5, 6];
+  const wm2 = new WeakMap([
+    [k1, "foo"],
+    [k2, "bar"],
+  ]);
+  wm2.get(k2); //'bar'
+  ```
+  WeakMap 只接受对象作为键名（null 除外），不接受其他类型的值作为键名
+  ```js
+  const map = new WeakMap();
+  map.set(1, 2);
+  //TypeError:1 is not an object!
+  map.set(Symbol(), 2);
+  //TypeError: Invalid value used as weak map key
+  map.set(null, 2);
+  //TypeError: Invaild value used as weak map key
+  ```
+  WeapMap 的键名指向的对象，一旦不再需要，里面的键名对象和所对应的键值对会自动消失，不用手动删除引用
+  ```js
+  const wm = new WeakMap();
+  const element = document.getElementById("example");
+  wm.set(element, "some information");
+  wm.get(element); //'some information'
+  //注意：WeakMap弱引用的只是键名，而不是键值。键值依然是正常引用
+  const wm = new WeakMap();
+  let key = {};
+  let obj = { foo: 1 };
+  wm.set(key, obj);
+  obj = null;
+  wm.get(key);
+  //Object{foo:1}
+  ```
+
+# 你是怎么理解 ES6 中 Proxy 的？使用场景？
+
+- 介绍
+  用于定义基本操作的自定义行为
+  本质：修改的是程序默认行为，就形同于在编程语言层面上做修改
+- 使用场景
+  Proxy 其功能非常类似于设计模式中的代理模式，常用功能如下：
+  - 拦截和监视外部对对象的访问
+  - 降低函数或类的复杂度
+  - 在复杂操作前对操作进行校验或对所需资源进行管理
+- 观察者模式
+  指是函数自动观察数据对象，一旦对象有变化，函数就会自动执行 observable 函数返回一个原始对象的 Proxy 代理，拦截赋值操作，触发充当观察者的各个函数
