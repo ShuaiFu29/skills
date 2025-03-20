@@ -268,3 +268,116 @@
 - 结论
   根实例对象 data 可以是对象也可以是函数（根实例是单例），不会产生数据污染情况
   组件实例对象 data 必须为函数，目的是为了防止多个组件实例对象之间共用一个 data，产生数据污染。采用函数形式，initData 时会将其作为工厂函数都会返回全新 data 对象
+
+# v-if 和 v-for 的优先级是什么？
+
+v-for 优先级是比 v-if 高
+在进行 if 判断的时候，v-for 是比 v-if 先进性判断
+主要事项：
+
+1. 永远不要把 v-if 和 v-for 同时用在同一个元素上，带来性能方面的浪费（每次渲染都会先循环再进行条件判断）
+2. 如果避免出现这种情况，则在外层嵌套 template（页面渲染不生成 DOM 节点），在这一层进行 v-if 判断，然后再内部进行 v-for 循环
+3. 如果条件出现在循环内部，可通过计算属性 computed 提前过滤掉那些不需要显示的项
+
+# v-show 和 v-if 有什么区别？使用场景分别是什么？
+
+- 共同点
+  作用效果是相同的，都能控制元素在页面是否显示，在语法上也是相同的
+  当表达式为 true 的时候，都会占据页面的位置
+  当表达式都为 false 时，都不会占据页面的位置
+- 区别
+  控制手段不同：v-show 隐藏则是为该元素添加 css 样式 display:none,DOM 元素依然还在。v-if 显示隐藏是将 DOM 元素整个添加或删除
+  编译过程不同：v-if 切换有一个局部编译/卸载的过程，切换过程中合适地销毁和重建内部的事件监听和子组件，v-show 只是简单的基于 css 切换
+  编译条件不同：v-if 是真正的条件渲染，它会确保在切换过程中条件块内的事件监听器和子组件适当地被销毁和重建。只有渲染条件为假时，并不做操作，直到为真才渲染。v-show 有 false 变为 true 的时候不会触发组件的生命周期。v-if 由 false 变为 true 的时候，触发组件的 beforeCreate，create,beforeMount,mounted 钩子，由 true 变为 false 的时候触发组件的 beforeDestory,destoryed 方法
+  性能消耗：v-if 有更高的切换消耗，v-show 有更高的初始渲染消耗
+- 使用场景
+  v-if 与 v-show 都能控制 DOM 元素在页面的显示
+  v-if 相比 v-show 开销更大（直接操作 DOM 节点增加与删除）
+  如果需要频繁的切换，则使用 v-show 较好
+  如果在运行时条件很少改变，则使用 v-if 较好
+
+# 你知道 vue 中 key 的原理吗？说说你对它的理解
+
+- Key 是什么
+  key 是给每一个 vnode 的唯一 id，也是 diff 的一种优化策略，可以根据 key，更准确，更快的找到对应的 vnode 节点
+- 设置 key 值一定能提高 diff 效率吗？
+  其实不然，文档明确表示：
+  当 Vue.js 用 v-for 正在更新已渲染过的元素列表时，它默认用“就地复用”策略。如果数据项的顺序被改变，Vue 将不会移动 DOM 元素来匹配数据项的顺序，而是简单复用此处每个元素，并且确保它在特定索引下显示一被渲染过的每个元素
+  这个默认的模式是高效的，但是只适用于不依赖子组件或临时 DOM 状态（例如：表单输入值）的列表渲染输出
+
+# 说说你对 vue 的 mixin 的理解，有什么应用场景？
+
+- mixin 是什么
+  Mixin 是面向对象程序设计语言中的类，提供了方法的实现。其他类可以访问 mixin 类的方法而不必成为其子类
+  Mixin 类通常作为功能模块使用，在需要该功能时“混入”，有利于代码复用右避免了多继承的复杂
+- Vue 中的 mixin
+  mixin（混入），提供了一种非常灵活的方式，来分发 Vue 组件中的可复用功能
+  本部其实就是一个 js 对象，它可以包含我们组件中任意功能选项，如 data，components，methods，created，computed 等
+  我们只要将共用的功能以对象的方式传入 mixins 选项中，当组件使用 mixins 对象时所有 mixins 对象的选项都将被混入该组件本身的选项中来
+  在 Vue 中我们可以局部混入和全局混入
+- 局部混入
+  定义一个 mixin 对象，有组件 options 的 data，methods 属性
+  ```js
+  const myMixin = {
+    created: function () {
+      this.hello();
+    },
+    methods: {
+      hello: function () {
+        console.log("hello from mixin!");
+      },
+    },
+  };
+  //组件通过mixins属性调用mixin对象
+  Vue.component("componentA", {
+    mixins: [myMixin],
+  });
+  //该组件在使用的时候，混入了mixin里面的方法，在自动执行created生命钩子，执行hello方法
+  ```
+- 全局混入
+  通过 Vue.mixin()进行全局混入
+  ```js
+  Vue.mixin({
+    created: function () {
+      console.log("全局混入");
+    },
+  });
+  ```
+- 注意事项  
+  当组件存在与 mixin 对象相同的选项的时候，进行递归合并的时候组件的选项会覆盖 mixin 的选项
+  但是如果相同选项为生命周期钩子的时候，会合并成一个数组，先执行 mixin 的钩子，再执行组件的钩子
+
+# Vue 常用的修饰符有哪些有什么应用场景？
+
+- 表达修饰符
+  关于表单的修饰符有如下：
+  - lazy
+  - trim
+  - number
+- 事件修饰符
+  - stop
+  - prevent
+  - self
+  - once
+  - capture
+  - passive
+  - native
+- 鼠标按钮修饰符
+  - left 左键点击
+  - right 右键点击
+  - middle 中间点击
+- 键盘修饰符
+- v-bind 修饰符
+  - async
+  - prop
+    -camel
+- 应用场景
+  - .stop 阻止事件冒泡
+  - .native 绑定原生事件
+  - .once 事件只执行一次
+  - .self 将事件绑定在自身身上，相当于阻止事件冒泡
+  - .prevent 阻止默认事件
+  - .caption 阻止事件捕获
+  - .once 只触发一次
+  - .keyCode 监听特定键盘按下
+  - .right 右键
