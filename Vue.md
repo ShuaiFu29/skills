@@ -564,3 +564,152 @@ v-for 优先级是比 v-if 高
     CORS(跨越资源共享)是一个系统，它由一系列传输的 HTTP 头组成，这些 HTTP 头决定浏览器是否阻止前端 JS 代码获取跨越请求的响应
   - Proxy
     Proxy 也称网络代理，是一种特殊的网络服务，允许一个（一般为客户端）通过这个服务与另一个网络终端（一般为服务器）进行非直接的连接。一些网关，路由器等网络设备具备网络代理功能。一般认为代理服务有利于保障网络终端的隐私或安全，防止攻击
+
+# 有写过自定义指令吗？自定义指令的应用场景有哪些？
+
+- 如何实现？
+  注册一个自定义指令有全局注册和局部注册
+  全局注册主要是通过 Vue.directive 方法进行注册
+  Vue.directive 第一个参数是指令的名字（不需要写上 v-前缀），第二个参数可以是对象数据，也可以是一个指令函数
+  ```js
+  //注册一个全局自定义指令"v-focus"
+  Vue.directive('focus',{
+    //当被绑定的元素插入DOM中时...
+    inserted:function(el){
+      //聚焦元素
+      el.focus()  //页面加载完成之后自动让输入框获取到焦点的小功能
+    }
+  })
+  //局部注册通过在组件options选项中设置directive属性
+  directive:{
+    focus:{
+      //指令的定义
+      inserted:function(el){
+        el.focus() //页面加载完成之后自动让输入框获取到焦点的小功能
+      }
+    }
+  }
+  //然后你可以在模板中任何元素上使用新的v-focus propety,如下
+  <input v-focus />
+  ```
+  自定义指令也像组件那样存在钩子函数
+  - bind：只调用一次，指令第一次绑定到元素时调用。在这类可以进行一次性的初始化设置
+  - inserted：被绑定元素插入父节点时调用（仅保证父节点存在，但不一定已被插入文档中）
+  - update：所在组件的 vnode 更新时调用，但是可以发生在其子 vnode 更新之前。指令的值可能发生了改变，也可能没有。但是你可以通过比较更新前后的值来忽略不必要的模板更新
+  - compoonentUpdated：指令所在组件的 vnode 及其子 vnode 全部更新后调用
+  - unbind：只调用一次，指令与元素解绑时调用
+    所有的钩子函数参数都有以下：
+  - el：指令所绑定的元素，可以用来直接操作 DOM
+  - binding：一个对象，包含以下 propety：
+    - name：指令名，不包括 v-前缀
+    - value：指令的绑定值，例如：v-my-directive="1+1"中，绑定值为 2
+    - oldValue：指令绑定的前一个值，仅在 update 和 componentUpdated 钩子中可用。无论值是否改变都可用
+    - expression：字符串形式的指令表达式。例如：v-my-directive="1+1"中，表达式为"1+1"
+    - arg：传给指令的参数，可选。例如：v-my-directive:foo 中，参数为"foo"
+    - modifiers：一个包含修饰符的对象。例如：v-my-directive.foo.bar 中，修饰符对象为{foo:true,bar:true}
+  - vnode：Vue 编译生成的虚拟节点
+  - oldVnode：上一个虚拟节点，仅在 update 和 componentUpdated 钩子中可用
+    除了 el 之外，其它参数都应该是只读的，切勿进行修改。如果需要在钩子之间共享数据，建议通过元素的 dataset 来进行
+
+# Vue 中的过滤器了解吗？过滤器的应用场景有哪些？
+
+- 是什么？
+  过滤器（filter）是输送介质管道上不可缺少的一种装置
+  过滤器实质不改变原始数据，只是对数据进行加工处理后返回过滤后的数据再进行调用处理，我们也可以理解其为一个纯函数
+- 如何使用？
+  vue 中的过滤器可以用在两个地方：双花括号插值和 v-bind 表达式，过滤器应该被添加再 js 表达式的尾部，由“管道”符号指示：
+  ```js
+  <!--在双花括号中-->>
+  {{{message|capitalize}}}
+  <!--在v-bind中-->
+  <div v-bind:id="rawId|formatId"></div>
+  ```
+  局部过滤器优先于全局过滤器被调用
+  一个表达式可以使用多个过滤器。过滤器之间需要用管道符"|"隔开。其执行顺序从左往右
+
+# 说说吗对 slot 的理解？slot 使用场景有哪些？
+
+- slot 是什么？
+  在我们可以理解为 slot 在组件模板中占好了位置，当使用该组件标签时候，组件标签里面的内容就会自动填空（替换组件模板中 slot 位置）
+- 使用场景
+  如果父组件在使用到一个复用组件的时候，获取这个组件在不同的地方有少量的更改，如果重写组件是一件不明智的事情/通过 slot 插槽想组件内部指定位置传递内容，完成这个复用组件在不同场景的应用
+- 分类
+  - 默认组件
+    子组件用<slot>标签来确定渲染的位置，标签里面可以放 DOM 结构，当父组件使用的时候没有往插槽传入内容，标签内 DOM 结构就会显示在页面
+    父组件在使用的时候，直接在子组件的标签内写入内容即可
+    ```vue
+    子组件Child.vue
+    <template>
+      <slot>
+        <p>插槽后背的内容</p>
+      </slot>
+    </template>
+    父组件
+    <Child>
+      <div>默认插槽</div> 
+    </Child>
+    ```
+  - 具名插槽
+    子组件用 name 属性来表示插槽的名字，不传为默认值
+    父组件中在使用时在默认插槽的基础上加上 slot 属性，值为子组件插槽 name 属性值
+    ```vue
+    子组件Child.vue
+    <template>
+      <slot>插槽后备的内容</slot>
+      <slot name="content">插槽后备的内容</slot>
+    </template>
+    父组件
+    <Child>
+      <template v-slot:defalut>具名插槽</template>
+      <!--具名插槽用插槽名做参数-->
+      <template v-slot:content>内容...</template>
+    </Child>
+    ```
+  - 作用域插槽
+    子组件在作用域上绑定属性来将子组件信息传递给父组件使用，这些属性会被挂载到父组件 v-slot 接受的对象上
+    父组件中在使用通过 v-slot:(简写：#)获取子组件的信息，在内容中使用
+    ```vue
+    子组件Child.vue
+    <template>
+      <slot name="footer" testProps="子组件的值">
+        <h3>没传footer插槽</h3>
+      </slot>
+    </template>
+    父组件
+    <Child>
+      <!--把v-slot的值指定为作用域上下文对象-->
+      <template v-slot:defalut='slotProps'>
+        来自子组件数据：{{sloteProps.testProps}}
+      </template>
+      <template #defalut='slotProps'>
+        来自子组件数据：{{slotProps.testProps}}
+      </template>
+    </Child>
+    ```
+  - 小结
+    v-slot 属性只能在<template>上使用，但在只有默认插槽时可以在组件标签上使用
+    默认插槽名为 default，可以省略 defaul 直接 xiev-slot
+    缩写为#时不能不写参数，写成#default
+    可以通过解构获取 v-slot={user}，还可以重命名 v-slot='{user:newName}' 和定义默认值 v-slot="{user='默认值'}"
+
+# 什么是虚拟 DOM？如何实现一个虚拟 DOM？说说你的思路
+
+- 为什么要虚拟 DOM？
+  DOM 是很慢的，其元素非常庞大，页面的性能问题的，大部分都是由 DOM 操作引起的
+  真实的 DOM 节点，哪怕是一个最简单的 div 也包含者很多属性，操作 DOM 的代价仍然是昂贵的，频繁操作还是会出现页面卡顿，影响用户体验
+- 实现虚拟 DOM 思路
+  createElement 创建 vnode 的过程，每个 vnode 有 chuildren，children 每个元素也是 vnode，这样就形成了一个虚拟树结构，用于描述真实的 DOM 树结构
+
+# Vue 项目中有封装过 axios 吗？主要是封装哪方面的？
+
+- axios 是什么?
+  axios 是一个轻量的 HTTP 客户端，基于 XMLHttpRequest 服务来执行 HTTP 请求，支持丰富的配置，支持 Promise，支持浏览器端和 node.js 端
+- 为什么要封装
+  随着项目规模增大，如果每发起一次 HTTP 请求，就要把这些比如设置超时时间，设置请求头，根据项目环境判断使用哪个请求地址，错误处理等等操作都要写一遍，这样重复劳动不仅浪费时间，而且让代码冗余不堪，难以维护
+- 如何封装
+  设置接口请求前缀：根据开发，测试，生成环境的不同，前缀需要加以区分
+  请求头：来实现一些具体的业务，必须携带一些参数才可以请求（例如：会员业务）
+  状态码：根据接口返回的不同 status，来执行不同的业务，这块需要和后端约定好
+  请求方法：根据 get，post 等方法进行一个再次封装，使用起来更为方便
+  请求拦截器：根据请求的请求头设定，来决定哪些请求可以访问
+  响应拦截器：这块就是根据后端返回来的状态码判定执行不同的业务
