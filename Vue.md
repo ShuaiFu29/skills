@@ -381,3 +381,186 @@ v-for 优先级是比 v-if 高
   - .once 只触发一次
   - .keyCode 监听特定键盘按下
   - .right 右键
+
+# Vue 中的$nextTick 有什么作用？
+
+- NextTick 是什么
+  在下次 DOM 更新循环结束之后执行延迟回调。在修改数据之后立即使用这个方法，获取更新后的 DOM
+  可以理解为，Vue 在更新 DOM 时是异步执行的。当数据发生变化，Vue 将开启一个异步更新队列，视图需要等队列中所有数据变化完成之后，再统一进行更新
+- 为什么要有 NextTick
+  ```js
+  {
+    {
+      num;
+    }
+  }
+  for (let i = 0; i < 100000; i++) {
+    num = i;
+  }
+  ```
+  如果没有 NextTick 更新机制，那么 num 每次更新值都会触发视图更新（上面这段代码也就是会更新 10 万次视图），有了 NextTick 机制，只需要更新一次，所有 NextTick 本质是一种优化策略
+- 使用场景
+  如果想要在修改数据后立即得到更新后的 DOM 结构，可以使用 Vue.nextTick()
+  第一个参数为：回调函数（可以获取最近得到 DOM 结构）
+  第二个参数为：执行函数上下文
+  ```js
+  //修改数据
+  vm.message='修改后的值'
+  //DOM还没有更新
+  console.log(vm.$el.textContent)  //原始的值
+  Vue.nextTick(function(){
+    //DOM更新了
+    console.log(vm.$el.textContent) //修改后的值
+  })
+  //组件内只有vm.$nextTick()实例方法只需要通过this.$nextTick(),并且回调函数中的this将自动绑定到当前的Vue实例上
+  this.message='修改后的值'
+  console.log(this.$el.textContent) //=>'原始的值'
+  this.$nextTick(function(){
+    console.log(this.$el.textContent) //=>'修改后的值'
+  })
+  $nextTick()会返回一个Promise对象，可以是用async/await完成相同作用的事情
+  this.message='修改后的值'
+  console.log(this.$el.textContent)  //=>'原始的值'
+  await this.$nextTick()
+  console.log(this.$el.textContent)  //=>'修改后的值'
+  ```
+
+# Vue 实例挂载的过程？
+
+- new Vue()的时候会调用\_init 方法
+  - 定义$set,$get,$delete,$watch 等方法
+  - 定义$on,$off,$emit 等事件
+  - 定义\_update,$forceUpdate,$destory 生命周期
+- 调用$mount 进行页面的挂载
+- 挂载的时候主要是通过 mountComponent 方法
+- 定义 updateComponent 更新函数
+- 执行 render 生成虚拟 DOM
+- \_update 将虚拟 DOM 生成真实 DOM 结构，并且渲染到页面中
+
+# 你理解 vue 的 diff 算法？
+
+- 是什么
+  diff 算法是一种通过同层的树节点进行比较的高效算法
+  特点：
+  1. 比较只会在同层级进行，不会跨层级比较
+  2. 在 diff 比较的过程中，循环从两边向中间比较
+     diff 算法在很多场景都有应用，在 vue 中，作用于虚拟 DOM 渲染成真实的 DOM 的新旧 vnode 节点进行比较
+- 比较方式
+  diff 整体策略为：深度优先，同层比较
+  1. 比较只会在同层级进行，不会跨层级比较
+  2. 比较过程中，循环从两边向中间收拢
+
+# Vue 中组件和插件有什么区别？
+
+- 组件是什么？
+  组件是把图形，非图形的各种逻辑均抽象为一个统一的概念（组件）来实现开发的模式，在 vue 中每一个.vue 文件都可以视为一个组件
+  组件的优势：
+  - 降低整个系统的耦合度，在保持接口不变的情况下，我们可以替换不同的组件快速完成需求，例如输入框，可以替换为日历，时间范围等组件作具体的实现
+  - 调试方便，由于整个系统是通过组件组合起来的，在出现问题的时候，可以用排除法直接移除组件，或者根据报错的组件快速定位问题，之所以能快速定位，是因为每个组件之间低耦合，职责单一，所有逻辑会比分析整个系统要简单
+  - 提高可维护性，由于每个组件的职责单一，并且组件在系统中是被复用的，所有对代码进行优化可获得系统的整体升级
+- 插件是什么？
+  插件通常用来为 Vue 添加全局功能。插件的功能范围没有严格的限制
+  - 添加全局方法或属性。如：vue-custom-element
+  - 添加全局资源：指令/过滤器/过度等。如：vue-touch
+  - 通过全局混入来添加一些组件选项。如：vue-router
+  - 添加 Vue 实例方法，通过把它们添加到 Vue.prototype 上实现
+  - 一个库，提供自己的 API，同时提供上面提到的一个或多个功能。如：vue-router
+- 两种的区别
+  - 编写形式
+    编写一个组件，可以有很多方式，我们最常见的就是 vue 单文件的这种格式，每一个.vue 文件我们可以看成是一个组件
+    ```Vue
+    <template>
+    </template>
+    <script>
+      export default{
+        ...
+      }
+    </script>
+    <style>
+    </style>
+    ```
+    我们该可以通过 template 属性来编写一个组件，如果组件内容多，我们可以在外部定义 template 组件内容，如果组件内容并不多，我们可直接写在 template 属性上
+    ```js
+    <template id='testComponent'>  //组件显示的内容
+      <div>component!</div>
+    <template>
+    Vue.component('componentA',{
+      template:'#testComponent'
+      template:`<div>component</div>` //组件内容少可以通过这种形式
+    })
+    ```
+    编写插件，vue 插件的实现应该暴露一个 install 方法。这个方法的第一个参数是 Vue 构造器，第二个参数是一个可选的选项对象
+    ```js
+    MyPlugin.install=function(Vue,options){
+      //1.添加全局方法或property
+      Vue.myGlobalMethod=function(){
+        //逻辑...
+      }
+      //2.添加全局资源
+      Vue.directive('my-directive',{
+        bind(el,binding,vnode,oldVnode){
+          //逻辑...
+        }
+        ...
+      })
+      //3.注入组件选项
+      Vue.mixin({
+        created:function(){
+          //逻辑...
+        }
+        ...
+      })
+      //4.添加实例方法
+      Vue.prototype.$myMethod=function(methodOptions)【
+      //逻辑...
+    }
+    ```
+  - 注册形式
+    - 组件注册
+      vue 组件注册主要分为全局注册与局部注册
+      全局注册通过 Vue.component 方法，第一个参数为组件的名称，第二个参数为传入的配置项
+      ```js
+      Vue.component("my-component-name", {
+        /*...*/
+      });
+      ```
+      局部注册只需要在用到的地方通过 components 属性注册一个组件
+      ```js
+      const component1={...} //定义一个组件
+      export defalut{
+        components:{
+          component1  //局部注册
+        }
+      }
+      ```
+    - 插件注册
+      插件的注册通过 Vue.use()的方式进行注册（安装），第一个参数为插件的名字，第二个参数是可选择的配置项
+      ```js
+      Vue.use(插件名字，{/*...*/})
+      ```
+      注意的是：
+      注册插件的时候，需要在调用 new Vue() 启动应用之前完成
+      Vue.use 会自动阻止多次注册相同插件，只会注册一次
+  - 使用场景
+    组件(Component) 是用来构成你的 App 的业务模块，它的目标是 App.vue
+    插件(Plugin) 是用来增强你的技术栈的功能模块，它的目标是 Vue 本身
+    插件就是指对 Vue 的功能的增强或补充
+
+# Vue 项目中你是如何解决跨越的呢？
+
+- 跨越是什么？
+  跨越本质是浏览器基于同源策略的一种安全手段
+  同源策略是一种约定，它是浏览器最核心也是最基本的安全功能
+  所谓同源具有以下三个相同点
+  协议相同
+  主机相同
+  端口相同
+  反之非同源请求，也就是协议，端口，主机其中一项不相同的时候，就会产生跨域
+  一定要注意跨越是浏览器的限制，你用抓包工具抓取接口数据，是可以看到接口已经把数据返回回来了，只是浏览器的限制，你获取不到数据。用 postman 请求接口能够请求到数据。这些再次印证了跨越是浏览器的限制
+- 如何解决？
+  解决跨越的方法有很多，下面列举三种：
+  - JSONP
+  - CORS
+    CORS(跨越资源共享)是一个系统，它由一系列传输的 HTTP 头组成，这些 HTTP 头决定浏览器是否阻止前端 JS 代码获取跨越请求的响应
+  - Proxy
+    Proxy 也称网络代理，是一种特殊的网络服务，允许一个（一般为客户端）通过这个服务与另一个网络终端（一般为服务器）进行非直接的连接。一些网关，路由器等网络设备具备网络代理功能。一般认为代理服务有利于保障网络终端的隐私或安全，防止攻击
