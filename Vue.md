@@ -713,3 +713,269 @@ v-for 优先级是比 v-if 高
   请求方法：根据 get，post 等方法进行一个再次封装，使用起来更为方便
   请求拦截器：根据请求的请求头设定，来决定哪些请求可以访问
   响应拦截器：这块就是根据后端返回来的状态码判定执行不同的业务
+
+# 是怎么处理 Vue 项目的错误的？
+
+- 错误类型
+  - 后端接口错误
+    通过 axios 的 interceptor 实现网络请求的 response 先进行一层拦截
+    ```js
+    apiClient.interceptors.response.use(
+      (response) => {
+        return response;
+      },
+      (error) => {
+        if (error.response.status == 401) {
+          router.push({ name: "Login" });
+        } else {
+          message.error("出错了");
+          return Promise.reject(error);
+        }
+      }
+    );
+    ```
+  - 代码中本身逻辑错误
+    - 设置全局错误处理函数
+      ```js
+      Vue.config.errorHandler = function (err, vm, info) {
+        //handle error
+        //'info'是Vue特定的错误信息，比如错误所在的生命周期钩子
+        //只在2.2.0+可用
+      };
+      ```
+      errorHandler 指定组件的渲染和观察期间为捕获错误处理函数。这个处理函数被调用时，可获取错误信息和 Vue 实例
+    - 生命周期钩子
+      errorCaptured 是 2.5.0 新增的一个生命周期钩子函数，当捕获到一个来自子孙组件的错误时被调用
+      基本类型
+      ```js
+      (err:Error,vm:Component,info:string)=>?boolean
+      ```
+      此钩子会受到三个参数：错误对象，发生错误的组件实例以及一个包含错误来源信息的字符串。此钩子可以返回 false 以阻止该错误继续向上传播
+- 小结
+  - handleError 在需要捕获异常的地方调用，首先获取到报错的组件，之后递归查找当前组件的父组件，依次调用 errorCaptured 方法，在遍历调用完所有 errorCaptured 方法或 errorCaptured 方法有报错时，调用 globalHandleError 方法
+  - globalHandleError 调用全局的 errorHandler 方法，再通过 logError 判断环境输出错误信息
+  - invokeWithErrorHandling 更好的处理异步错误信息
+  - logError 判断环境，选择不同的抛错方式。非生产环境下，调用 warn 方法处理错误
+
+# 你了解 axios 的原理码？有看过它的源码码？
+
+- axios 的使用
+  ```js
+  发送请求
+  import axios from 'axios'
+  axios(config)  //直接传入配置
+  axios(url[,config]) //传入url和配置
+  axios[method](url[,option]) //直接调用请求方法，传入data，url和配置
+  axios.request(option) //调用reques方法
+  const axiosInstance=axios.create(config) //axiosInstance也具有以上axios的能力
+  axios.all([axiosInstance1,axiosInstance2]).then(axios.spread(response1,response2))  //调用all和传入sprea回调
+  请求拦截器
+  axios.interceptors.request.use(function (config){
+    //这里写发送请求前处理的代码
+    return config
+  },function(error){
+    //这里写发送请求错误相关代码
+    return Promise.reject(error)
+  })
+  响应拦截器
+  axios.interceptors.response.use(function (response){
+    //这里写得到响应数据后处理的代码
+    return response
+  },function(error){
+    //这里写得到错误响应处理的代码
+    return Promise.reject(error)
+  })
+  取消请求
+  //方法一
+  const CancelToken=axios.CancelToken
+  const source=CancelToken.source()
+  axios.get('xxxx',{
+    cancelToken:source.token
+  })
+  //取消请求（请求原因是可选的）
+  source.cancel('主动取消请求')
+  //方法二
+  const CancelToken=axios.CancelToken
+  let cancel
+  axios.get('xxx',{
+    cancelToken:new CancelToken(function executor(c){
+      cancel=c
+    })
+  })
+  cancel('主动取消请求')
+  ```
+- 实现一个简易版 axios
+
+```js
+class Axios {
+  constructor() {}
+  request(config) {
+    return new Promise((resolve) => {
+      const { url = "", method = "get", data = {} } = config;
+      //发送ajax请求
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, url, true);
+      xhr.onload = function () {
+        console.log(xhr.responseText);
+        resolve(xhr.responseText);
+      };
+      xhr.send(data);
+    });
+  }
+}
+```
+
+# vue 要做权限管理该怎么做？
+
+- 是什么？
+  权限是对特定资源的访问许可，所谓权限控制，也就是确保用户只能访问到被分配的资源
+  而前端权限归根结底是请求的发起权，请求的发起可能有下面两种形式触发
+  - 页面加载触发
+  - 页面上的按钮点击触发
+    总的来说，所有的请求发起都触发自前端路由或视图
+    所以我们可以从这两方面入手，对触发权限的源头进行控制，最终要实现的目标是：
+  - 路由方面，用户登录后只能看到自己有权访问的导航菜单，也只能访问自己有权访问的路由地址，否则将跳转 4xx 提示页
+  - 视图方面，用户只能看到自己有权浏览的内容和有权操作的控件
+  - 最后再加上请求控制作为最后一道防线，路由可能配置失误，按钮可能忘了加权限，这种时候请求控件可以用来兜底，越权请求将在前端被拦截
+- 如何做？
+  - 接口权限
+    接口权限目前一般采用 jwt 的形式来验证，没有通过的话一般返回 401，跳转到登录页面重新进行登录
+  - 按钮权限
+    方案一：
+    按钮权限可以用 v-if 判断
+    但是如果页面过多，每个页面都需要获取用户权限 role 和路由表里的 meta.btnPermissions，然后再做判断
+    方案二：
+    通过自定义指令进行按钮权限的判断
+    首先配置路由，自定义权限鉴定指令
+  - 菜单权限
+    菜单权限可以理解成将页面与路由进行解耦
+    方案一：
+    菜单与路由分离，菜单由后端返回，前端定义路由信息，全局路由守卫里做判断
+    缺点：
+    - 菜单需要与路由一一对应，前端添加新功能，需要通过菜单管理功能添加新的菜单，如果菜单配置的不对会导致应用不能正常使用
+    - 全局路由守卫里，每次路由跳转都要做判断
+      方案二
+      菜单和路由都由后端返回
+      前端统一定义路由组件，后端路由返回统一格式，在将后端返回路由通过 addRoutes 动态挂载之间，需要将数据处理一下，将 component 字段换为真正的组件
+      如果由嵌套路由，后端功能设计的时候，需要添加相应的字段，前端拿到数据也要做相应的处理
+      这种方法也会存在缺点：
+    - 全局路由守卫里，每次路由跳转都要做判断
+    - 前后端的配合要求更高
+  - 路由权限
+    方案一：
+    初始化即挂载全部路由，并且在路由上标记相应的权限信息，每次路由跳转前做校验
+    这种方式存在四种缺点：
+    - 加载所有的路由，如果路由很多，而用户并不是所有路由都有权限访问，对性能会有影响。
+    - 全局路由守卫里，每次路由跳转都要做权限判断
+    - 菜单信息写死在前端，要改个显示文字或权限信息，需要重新编译
+    - 菜单跟路由耦合在一起，定义路由的时候还有添加菜单显示标题，图标之类的信息，而且路由不一定作为菜单显示，还要多加字段进行标识
+      方案二：
+      初始化的时候先挂载不需要权限控制路由，比如登录页，404 等错误页。如果用户通过 URL 进行强制访问，则会直接进入 404，相当于从源头上做了控制
+      登录后，获取用户权限信息，然后筛选有权访问的路由，在全局路由守卫里进行调用 addRoutes 添加路由
+      按需挂载，路由就需要知道用户的路由权限，也就是在用户登录进来的时候就要知道当前用户拥有哪些路由权限
+      这种方式也存在以下缺点：
+    - 全局路由守卫里，每次路由跳转都要做判断
+    - 菜单信息写死在前端，要改给显示文字或权限信息，需要重新编译
+    - 菜单跟路由耦合在一起，定义路由的时候还有添加菜单显示标题，图标之类的信息，而且路由不一定作为菜单显示，还要多加字段进行标识
+
+# 说说你对 keep-alive 的理解是什么？
+
+- keep-alive 是什么？
+  keep-alive 是 vue 中的内置组件，能在组件切换过程中将状态保留在内存中。防止重复渲染 DOM
+  keep-alive 可以设置一下 props 属性：
+  - include 字符串或正则表达式。只有名称匹配的组件会被缓存
+  - exclude 字符串或正则表达式。任何名称匹配的组件都不会被缓存
+  - max 数字。 最多可以缓存多少组件实例
+- 使用场景
+  使用原则：当我们在某些场景下不需要让页面重新加载时我们可以使用 keep-alive
+- 缓存后如何获取数据
+  解决方案有以下两种：
+  - beforeRouteEnter
+    每次组件渲染的时候，都会执行 beforeRouteEnter
+  - actived
+    在 keep-alive 缓存的组件被激活的时候，都会执行 actived 钩子
+    注意：服务器端渲染期间 actived 不被调用
+
+# 你对 SPA 单页面的理解，它的优缺点分别是什么？如何实现 SPA 应用呢？
+
+- 什么是 SPA
+  SPA(single-page-application)，翻译过来就是单页面应用 SPA 是一种网络应用程序或网站的模型，它通过动态重写当前页面来与用户交互，这种方式避免了页面之间切换打断用户体验在单页应用中，所有必要的代码（HTML,JS 和 CSS）都通过单个页面加载而检索，或者根据需要（通常为响应用户操作）动态装载适当的资源并添加到页面，页面在任何时间点都不会重新加载，也不会将控制转移到其他页面。举个例子:一个杯子，早上装牛奶，中午装开水，晚上装茶，我们发现，变的始终是杯子里面的内容，而杯子始终是那个杯子
+- SPA 和 MPA 的区别
+  MPA(MultiPage-page-application)翻译过来就是多页面应用，在 MPA 中，每个页面都是一个主页面，都是独立的，当我们在访问另一个页面的时候，都需要重新加载 HTML,CSS,JS 文件
+  单页面应用 多页面应用
+  组成 一个主页面和多个页面片段 多个主页面
+  刷新方式 局部刷新 整页刷新
+  url 模式 哈希模式 历史模式
+  SEO 搜索引擎优化 难实现，可使用 SSR 方式改善 历史模式
+  数据传递 容易 通过 url，cookie，localStorage 等传递
+  页面切换 速度快，用户体验良好 切换加载资源，速度慢，用户体验差
+  维护成本 相对容易 相对复杂
+- 单页面应用优缺点
+  优点：
+  - 具有桌面应用的即时性，网站的可移植性和可访问性
+  - 用户体验好，快，内容的改变不需要重新加载整个页面
+  - 良好的前后端分离，分工更明确
+    缺点：
+  - 不利于搜索引擎的抓取
+  - 首次渲染速度相对较慢
+
+# SPA 首屏加载速度慢的怎么解决？
+
+- 什么是首屏加载？
+  首屏时间指的是浏览器从响应用户输入网站地址，到首屏内容渲染完成的时间，此时整个网页不一定要全部渲染完成，但需要展示当前视窗需要的内容
+- 加载慢的原因
+  - 网络延时问题
+  - 资源文件体积是否过大
+  - 资源是否重复发送请求区加载
+  - 加载脚本的时候，渲染内容阻塞
+    解决方案：
+  - 减少入口文件体积
+    常用的手段是路由懒加载，把不同路由对应组件分割成不同的代码块，待路由被请求的时候会单独打包路由，使得入口文件变小，加载速度大大增加
+    在 vue-router 配置路由的时候，采用动态加载路由的形式
+    以函数的形式加载路由，这样就可以把各自的路由文件分别打包，只有在解析给定的路由时，才会加载路由组件
+  - 静态资源本地缓存
+    后端返回资源问题：
+    - 采用 HTTP 缓存，设置 Cache-Control，Last-Modified，Etag 等响应头
+    - 采用 Service Worker 离线缓存
+      前端合理利用 localStorage
+  - UI 框架按需加载
+    按需引用所需要的 UI 组件
+  - 图片资源的压缩
+    对于所有的图片资源，我们可以进行适当的压缩，对页面上使用到的 icon，可以使用在线字体图标，或者雪碧图，将众多小图标合并到同一张图上，用以减轻 http 请求压力
+  - 组件重复打包
+    在 webpage 的 config 文件中，修改 CommonsChunkPlugin 的配置
+  - 使用 SSR
+    SSP(Server side) 也就是服务端渲染，组件或页面通过服务器生成 html 字符串，再发送到浏览器从头搭建一个服务端渲染是很复杂的，vue 应用建议使用 Nuxt.js 实现服务端渲染
+- 小结
+  减少首屏渲染时间的方法有很多，总的来讲可以分为两大部分：资源加载优化和页面渲染优化
+
+# vue3 有了解过吗？能说说 vue2 的区别吗/
+
+- vue3 新特性
+  - 速度更快
+    vue3 相比 vue2
+    - 重写了虚拟 DOM 实现
+    - 编译模板的优化
+    - 更高效的组件初始化
+    - update 性能提高 1.3~2 倍
+    - SSR 速度提高了 2~3 倍
+  - 体积减少
+    通过 webpack 的 tree-shaking 功能，可以将无用的模块“剪辑”，仅打包需要的。能够 tree-shaking，有两大好处：
+    - 对开发人员能够对 vue 实现更多其他的功能，而不必担忧整体体积过大
+    - 对使用者，打包出来的体积变小了
+  - 更容易维护
+    - compostion API
+      - 可与现有的 Options API 一起使用
+      - 灵活的逻辑组合与复用
+      - Vue3 模块可以和其他框架搭配使用
+    - 更好的 Typescript 支持
+    - 编译器重写
+  - 更接近原生
+    - 可以自定义渲染 API
+  - 更易使用
+    响应式 API 暴露出来
+- Vue3 新增特性
+  - framents
+  - Teleport
+  - compostion API
+  - createRender
