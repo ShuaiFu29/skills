@@ -134,3 +134,195 @@
   - React 自身实现了一套事件冒泡机制，所以这也就是为什么我们 event.stopPropagation()无效的原因
   - React 通过队列的形式，从触发的组件向父组件回溯，然后调用他们 JSX 中定义的 callback
   - React 有一套自己的合成事件（SyntheticEvent）
+
+# React 事件绑定的方式有哪些？区别？
+
+- 是什么？
+  在 React 应用中，事件名都是小驼峰格式进行书写
+- 如何绑定？
+  1. render 方法中使用 bind
+  2. render 方法中使用箭头函数
+  3. constructor 中 bind
+  4. 定义阶段使用箭头函数绑定
+- 区别
+  - 编写方面：方式一和方式二写法简单，方式三的编写过于冗余
+  - 性能方面：方式一和方式二在每次组件 render 的时候都会生成新的方法实例，性能问题欠缺。若该函数作为属性值传给子组件的时候，都会导致额外的渲染。而方式三，方式四只会生成一个方法实例
+    综上所述，方式四是最优的事件绑定
+
+# React 构建组件的方法有哪些？区别？
+
+- 是什么？
+  在 React 中，一个类，一个函数都可以视为一个 1 组件
+  - 降低整个系统的耦合度，在保持接口不变的情况下，我们可以替换不同的组件快速完成需求
+  - 调试方便，由于整个系统是通过组件组合起来的，在出现问题的时候，可以用排除法直接移除组件，或者根据报错的组件快速定位问题，之所以能够快速定位，是因为每个组件之间低耦合，职责单一，所以逻辑会比分析整个系统简单
+  - 提高可维护性，由于每个组件的职责单一，并且组件在系统中是被复用的，所以对代码进行优化可以获得系统的整体升级
+- 如何构建？
+  - 函数式构建
+  - 通过 React.createClass 方法创建
+  - 继承 React.Component 创建
+- 区别
+  由于 React.createClass 创建的方式过于冗余，并不建议使用
+  而像函数式创建和类组件的区别主要在于需要创建的组件是否需要为有状态组件：
+  - 对于一些无状态的组件创建，建议使用函数式创建的方式
+  - 由于 react hooks 的出现，函数式组件创建通过 hooks 方法也能使之成为有状态组件，再加上目前推崇函数式编程，所以这里建议都使用函数式编程的方式来创建组件
+
+# 说说 React 生命周期有哪些不同阶段？每个阶段对应的方法是什么？
+
+- 流程
+  - 创建阶段
+    - constructor
+    - getDerivedStateFromProps
+    - render
+    - componentDidMount
+  - 更新阶段
+    - getDerivedStateFromProps
+    - shouldComponentUpdate
+    - render
+    - getSnapshotBeforeUpdate
+    - componentDidUpdate
+  - 卸载阶段
+    - componentWillUnmount
+
+# React 组件之间如何通信？
+
+- 如何通信？
+  - 父组件向子组件传递
+    由于 React 的数据流动是单向的，父组件向子组件传递是最常见的方式
+    父组件在调用子组件的时候，只需要在子组件标签内传递参数，子组件通过 props 属性就能接收父组件传递过来的参数
+    ```jsx
+    function EmailInput(props) {
+      return (
+        <label>
+          Email:
+          <input value={props.email} />
+        </label>
+      );
+    }
+    const element = <EmailInput email="123456@163.com" />;
+    ```
+  - 子组件向父组件传递
+    子组件向父组件通信的基本思路是，父组件向子组件传递一个函数，然后通过这个函数的回调，拿到子组件传递过来的值
+    ```jsx
+    //父组件对应的代码
+    class Parent extends Component{
+      constructor(){
+        super()
+        this.state={
+          price:0
+        }
+        getIremPrice(e){
+          this.setState({
+            price:e
+          })
+        }
+      }
+      render(){
+        return (
+          <div>
+            <div>price: {this.state.price}</div>
+             /*向子组件中传递一个函数*/
+             <Child getPrice={this.getItemPrice.bind(this)} />
+          </div>
+        )
+      }
+    }
+    //子组件对应的代码
+    class Child extends Component{
+      clickGoods(e){
+        //在此函数中传入值
+        this.props.getPrice(e)
+      }
+      render(){
+        return (
+          <div>
+            <button onClick={this.clickGoods.bind(this,100)}>goods1</button>
+            <button onClick={this.clickGoods.bind(this,1000)}>goods2</button>
+          </div>
+        )
+      }
+    }
+    ```
+  - 兄弟组件之间的通信
+    如果是兄弟组件之间的传递，则父组件作为中间层来实现数据的互通，通过父组件传递
+    ```jsx
+    class Parent extends React.Component {
+      consstructor(props) {
+        super(props);
+        this.state = { count: 0 };
+      }
+      setCount = () => {
+        this.setState({ count: this.state.count + 1 });
+      };
+      render() {
+        return (
+          <div>
+            <SiblingA count={this.state.count} />
+            <SiblingB count={this.state.count} />
+          </div>
+        );
+      }
+    }
+    ```
+  - 父组件向后代组件传递
+    父组件向后代组件传递数据是一件最普通的事情，就像全局数据一样
+  - 非关系组件传递
+    如果组件之间关系类型比较复杂，建议将数据进行一个全局资管管理，从而实现通信
+
+# 说说对高阶组件的理解？应用场景？
+
+- 是什么？
+  高阶函数至少满足以下一个条件的函数
+  - 接受一个或多个函数作为输入
+  - 输出一个函数
+- 如何编写？
+  把通用的逻辑放在高阶组件中，对组件实现一致的处理，从而实现代码的复用
+  所以，高阶组件的主要功能是封装并分离组件的通用逻辑，让通用逻辑在组件间更好地被复用
+  但在使用高阶组件的同时，一般遵守一些约定：
+  - props 保持一致
+  - 你不能在函数式（无状态）组件上使用 ref 属性，因为它没有实例
+  - 不要以任何方式改变原始组件 WrappedComponent
+  - 透传不相关 props 属性给被包裹的组件 WrappedComponent
+  - 不要再 render()方法中使用高阶组件
+  - 使用 componse 组合高阶组件
+  - 包装显示名字以便于调试
+
+# 说说对 React refs 的理解？应用场景？
+
+- 是什么？
+  React 中的 refs 提供了一种方法，允许我们访问 DOM 节点或在 render 方法中创建的 React 元素。本质为 ReactDOM.render()返回的组件实例，如果是渲染组件则返回的是组件实例，如果渲染 DOM 则返回的是具体的 DOM 节点
+- 如何使用？
+  创建 ref 的形式有三种：
+  - 传入字符串，使用时通过 this.refs 传入的字符串的格式获取对应的元素
+  - 传入对象，对象是通过 React.createRef()方式创建出来，使用时获取到创建的对象中存在 current 属性就是对应的元素
+  - 传入函数，该函数会在 DOM 被挂载时进行回调，这个函数会传入一个元素对象，可以自己保存，使用时，直接拿到之前保存的元素对象即可
+  - 传入 hook，hook 是通过 useRef()方式创建，使用时通过 hook 对象的 current 属性就是对应的元素
+- 应用场景
+  - 对 DOM 元素的焦点控制，内容选择，控制
+  - 对 DOM 元素的内容设置及媒体播放
+  - 对 DOM 元素的操作和对组件实例的操作
+  - 集成第三方 DOM 库
+
+# 说说 React 中 setState 执行机制
+
+- 是什么？
+  一个组件的显示形态可以由数据状态和外部参数所决定，而数据状态就是 state
+  当需要修改里面的值的状态就需要通过 setState 来改变，从而达到更新组件内部数据的作用
+- 更新类型
+  - 异步更新
+  - 同步更新
+    在组件生命周期或 React 合成事件中，setState 是异步
+    在 setTimeout 或者原生 DOM 事件中，setState 是同步
+
+# 说说 Real DOM 和 Virtual DOM 的区别？优缺点？
+
+- 是什么？
+  Real DOM,真实 DOM 是一个结构化文本的抽象，在页面渲染出的每一个节点都是一个真实的 DOM 结构
+  Virtual DOM 本质上是以 JS 对象形式存在的对 DOM 的描述。创建虚拟 DOM 目的就是为了更好的将虚拟的节点渲染到页面视图上，虚拟 DOM 对象的节点与真实 DOM 的属性一一对应
+- 区别
+  虚拟 DOM 不会进行排版与重绘操作，而真实 DOM 会频繁重排与重绘
+  虚拟 DOM 的总损耗是“虚拟 DOM 增删改+真实 DOM 差异增删改+排版与重绘”，而真实 DOM 的总损耗是“真实 DOM 完全增删改+排版与重绘”
+- 优缺点：
+  真实 DOM 优势： 易用
+  真实 DOM 缺点：效率低，解析速度慢，内存占用量过高，性能差，频繁操作真实 DOM，易于导致重绘与回流
+  虚拟 DOM 的优势：简单方便，如果使用手动操作真实 DOM 来完成页面，繁琐又容易出错，在大规模应用下维护起来困难。性能方面，使用 Virtual DOM 能有效避免真实 DOM 数频繁更新，减少多次引起重绘与回流，提高性能。React 借助虚拟 DOM，带来了跨平台的能力，一套代码多端运行
+  虚拟 DOM 缺点：在一些性能要求极高的应用中虚拟 DOM 无法进行针对性的极致优化，首次渲染大量 DOM 时，由于多了一次虚拟 DOM 的计算，计算比正常稍慢
